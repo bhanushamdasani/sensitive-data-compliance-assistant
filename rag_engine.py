@@ -179,22 +179,35 @@ class DocumentRAG:
         if effective_key:
             try:
                 genai.configure(api_key=effective_key)
-                emb_model = _get_embed_model()
-                # Compute embeddings in a batch request
-                result = genai.embed_content(
-                    model=emb_model,
-                    content=self.chunks,
-                    task_type="retrieval_document"
-                )
-                self.embeddings = result.get("embedding")
-                if self.embeddings:
-                    self.use_api = True
-                    return
+                
+                # Try the cached/default embedding model name directly first to avoid slow list_models query
+                emb_model = _SELECTED_EMBED_MODEL or "models/gemini-embedding-2"
+                try:
+                    result = genai.embed_content(
+                        model=emb_model,
+                        content=self.chunks,
+                        task_type="retrieval_document"
+                    )
+                    self.embeddings = result.get("embedding")
+                    if self.embeddings:
+                        self.use_api = True
+                        return
+                except Exception as inner_e:
+                    # Fallback to model listing if the default/cached embedding model is unavailable
+                    print(f"[RAG Engine] Direct embedding call failed with {emb_model}. Running listing fallback: {inner_e}")
+                    emb_model = _get_embed_model()
+                    result = genai.embed_content(
+                        model=emb_model,
+                        content=self.chunks,
+                        task_type="retrieval_document"
+                    )
+                    self.embeddings = result.get("embedding")
+                    if self.embeddings:
+                        self.use_api = True
+                        return
             except Exception as e:
-                # Log or print error, fall back to offline TF-IDF
                 print(f"[RAG Engine] Embedding API failed, falling back to TF-IDF. Error: {e}")
                 
-        # Fallback to TF-IDF if API is unavailable or failed
         self.tfidf = SimpleTFIDF(self.chunks)
         self.use_api = False
 
@@ -218,23 +231,40 @@ class DocumentRAG:
             
         if self.use_api and self.embeddings:
             try:
-                # Get embedding for the query
-                emb_model = _get_embed_model()
-                result = genai.embed_content(
-                    model=emb_model,
-                    content=query,
-                    task_type="retrieval_query"
-                )
-                query_emb = result.get("embedding")
-                if query_emb:
-                    scores = []
-                    for idx, chunk_emb in enumerate(self.embeddings):
-                        sim = self._cosine_similarity_emb(query_emb, chunk_emb)
-                        scores.append((idx, sim))
-                    scores.sort(key=lambda x: x[1], reverse=True)
-                    return [self.chunks[idx] for idx, _ in scores[:top_k]]
+                # Try the cached/default embedding model name directly first to avoid slow list_models query
+                emb_model = _SELECTED_EMBED_MODEL or "models/gemini-embedding-2"
+                try:
+                    result = genai.embed_content(
+                        model=emb_model,
+                        content=query,
+                        task_type="retrieval_query"
+                    )
+                    query_emb = result.get("embedding")
+                    if query_emb:
+                        scores = []
+                        for idx, chunk_emb in enumerate(self.embeddings):
+                            sim = self._cosine_similarity_emb(query_emb, chunk_emb)
+                            scores.append((idx, sim))
+                        scores.sort(key=lambda x: x[1], reverse=True)
+                        return [self.chunks[idx] for idx, _ in scores[:top_k]]
+                except Exception as inner_e:
+                    # Fallback to model listing if the default/cached embedding model is unavailable
+                    print(f"[RAG Engine] Direct embedding query failed with {emb_model}. Running listing fallback: {inner_e}")
+                    emb_model = _get_embed_model()
+                    result = genai.embed_content(
+                        model=emb_model,
+                        content=query,
+                        task_type="retrieval_query"
+                    )
+                    query_emb = result.get("embedding")
+                    if query_emb:
+                        scores = []
+                        for idx, chunk_emb in enumerate(self.embeddings):
+                            sim = self._cosine_similarity_emb(query_emb, chunk_emb)
+                            scores.append((idx, sim))
+                        scores.sort(key=lambda x: x[1], reverse=True)
+                        return [self.chunks[idx] for idx, _ in scores[:top_k]]
             except Exception as e:
-                # Graceful fallback to TF-IDF on error
                 print(f"[RAG Engine] Query embedding failed, using TF-IDF. Error: {e}")
                 if not self.tfidf:
                     self.tfidf = SimpleTFIDF(self.chunks)

@@ -81,13 +81,27 @@ def _call_llm(system: str, user: str) -> Optional[str]:
         
     try:
         genai.configure(api_key=api_key)
-        model_name = _get_model_name()
-        model = genai.GenerativeModel(
-            model_name=model_name,
-            system_instruction=system
-        )
-        response = model.generate_content(user)
-        return response.text
+        
+        # Try the cached or default model name directly first to bypass listing overhead
+        model_name = _SELECTED_MODEL or "gemini-2.5-flash"
+        try:
+            model = genai.GenerativeModel(
+                model_name=model_name,
+                system_instruction=system
+            )
+            response = model.generate_content(user)
+            return response.text
+        except Exception as e:
+            # Fallback to model listing if the default/cached model is unavailable
+            print(f"[LLM Client] Direct call failed with {model_name}. Running listing fallback: {e}")
+            model_name = _get_model_name()
+            model = genai.GenerativeModel(
+                model_name=model_name,
+                system_instruction=system
+            )
+            response = model.generate_content(user)
+            return response.text
+            
     except Exception as e: 
         return f"__ERROR__ LLM call failed: {e}"
 
