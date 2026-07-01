@@ -1,0 +1,28 @@
+CONFIDENTIAL - INTERNAL USE ONLY
+
+Employee Onboarding Record
+
+Name: Ananya Sharma
+Employee ID: EMP102938
+Email: ananya.sharma@examplecorp.in
+Phone: 9876543210
+Aadhaar Number: 2345 6789 1008
+PAN Number: ABCDE1234F
+
+Payroll Details:
+Bank Account No: 123456789012
+IFSC Code: HDFC0001234
+
+System Access:
+api_key: sk_test_51H8xYzT3example0000000000
+password: TempPass!2024
+
+Note: This document contains proprietary compensation bands and is
+strictly private. Do not distribute outside the HR department. This
+information is a trade secret of ExampleCorp and is not for public
+release.
+
+For billing verification, a sample (fake, non-functional) card number
+was used during system testing: 4111 1111 1111 1111.
+
+Manager: Rohit Verma (rohit.verma@examplecorp.in, EMP100542)
